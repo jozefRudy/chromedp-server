@@ -5,6 +5,13 @@ HTTP API for headless Chrome web scraping using chromedp.
 ## Quick Start
 
 ```bash
+docker pull ghcr.io/jozefrudy/chromedp-server:latest
+docker run -p 4001:4001 ghcr.io/jozefrudy/chromedp-server:latest
+```
+
+Or build from source:
+
+```bash
 docker build -t chromedp-server .
 docker run -p 4001:4001 chromedp-server
 ```
