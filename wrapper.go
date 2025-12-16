@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -28,6 +29,15 @@ type ScrapeResult struct {
 
 type ScrapeResponse struct {
 	Results []ScrapeResult `json:"results"`
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
 }
 
 var userAgents = []string{
@@ -121,6 +131,8 @@ func scrapeURL(ctx context.Context, url string, timeout int, userAgent string) S
 	return ScrapeResult{Content: htmlContent, Title: title}
 }
 
+var timeoutMS int
+
 func scrapeHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	w.Header().Set("Content-Type", "application/json")
@@ -193,7 +205,7 @@ func scrapeHandler(w http.ResponseWriter, r *http.Request) {
 			urlCtx, urlCancel := chromedp.NewContext(allocCtx)
 			defer urlCancel()
 
-			results[i] = scrapeURL(urlCtx, url, 60_000, selectedUA)
+			results[i] = scrapeURL(urlCtx, url, timeoutMS, selectedUA)
 		}()
 	}
 
@@ -215,7 +227,12 @@ func main() {
 	zerolog.MessageFieldName = "message.Message"
 	log.Logger = zerolog.New(os.Stdout)
 
-	log.Info().Msg("Chromedp HTTP wrapper starting")
+	// Load configuration
+	timeoutMS = getEnvInt("TIMEOUT_MS", 60000)
+
+	log.Info().
+		Int("timeout_ms", timeoutMS).
+		Msg("Chromedp HTTP wrapper starting")
 
 	http.HandleFunc("/scrape", scrapeHandler)
 	http.HandleFunc("/health", healthHandler)
